@@ -1,0 +1,73 @@
+function [geometry] = plot_div1d_polgeom(divgrid, axis)
+%PLOT_DIV1D_POLGEOM Summary of this function goes here
+% function [h] = plot_div1d_polgeom(divgrid, axis)
+% plots the poloidal geometry of div1d
+% output geometry struct with reshaped/postcalculated terms
+%
+% take over axis of the plot if provided
+set('CurrentAxis',axis)
+
+% these are arbitrary
+geometry.major_height = major_height_dat;
+geometry.vslr = [shot.geom.vsl(1,3:90)  shot.geom.vsl(1,3)];
+geometry.vslz = [shot.geom.vsl(2,3:90) shot.geom.vsl(2,3)];
+nwall =   [0 -1; ...
+           -1 0];
+[~,~,normal] = define_div1d_normal_2t(major_radius_dat,major_height_dat,lambda_full,cc2cb(Nx,major_radius_dat,diff(x),delta_xcb),...
+                    cc2cb(Nx,major_height_dat,diff(x),delta_xcb),i_Xpoint,nwall,[15 30]);
+
+geometry.normal_vector = normal;
+balance = 0.78; 
+[ir, iz] = offset_curve(major_radius_dat,major_height_dat,-lambda_full*(1-balance),normal);
+[or, oz] = offset_curve(major_radius_dat,major_height_dat,lambda_full*balance,normal);
+% determine geometry of neutral chambers
+   %      r     z    cutting point?
+        vesrz = [0.625,-0.7, 1; % pfr cut
+                 0.625, -0.45, 1; % target left
+                 0.625, -0.43, 1; % target right
+                 0.625, -0.3, 1; % baffle
+                 0.625, 0.7, 0;
+                 0.67,0.75, 0;
+                 major_radius_dat(i_baffle(1)), 0.75, 1; % stag point
+                 0.96, 0.75 , 0;
+                 1.14, 0.55 , 0;
+                 1.14, -0.39, 1; % baffle
+                 1.14, - 0.55, 0;
+                 0.96, -0.75, 0;
+                 or(end), round(oz(end),2), 1; % target right
+                 ir(end), round(iz(end),2), 1; % target left
+                 0.67, -0.75, 0;
+                 0.625,-0.7, 1]; % pfr cut   
+
+vesrz = reshape()
+
+         [domain_bound,~] = find(vesrz(:,3)==1);
+         clear romrz
+         romrz{1}(1:2,:) = [vesrz(domain_bound(1):domain_bound(2),1:2); [ir(1:max(i_baffle(1),2))'  iz(1:max(i_baffle(1),2))']; vesrz(domain_bound(1),1:2)]';
+         romrz{2}(1:2,:) = [vesrz(domain_bound(4):domain_bound(3),1:2); [or(1:max(i_baffle(1),2))'  oz(1:max(i_baffle(1),2))']; vesrz(domain_bound(4),1:2) ]';
+         if  X_core_SOL  == 0  % only from stagnation point
+         romrz{3}(1:2,:) = [flip(vesrz(domain_bound(5):domain_bound(6),1:2)); [or(i_baffle(1):i_baffle(2))' oz(i_baffle(1):i_baffle(2))']; vesrz(domain_bound(6),1:2)]';
+         else % from baf to baf
+         romrz{3}(1:2,:) = [flip(vesrz(domain_bound(4):domain_bound(6),1:2)); [or(i_baffle(1):i_baffle(2))' oz(i_baffle(1):i_baffle(2))']; vesrz(domain_bound(6),1:2)]';
+         end
+         romrz{4}(1:2,:) = [flip(vesrz(domain_bound(6):domain_bound(7),1:2)); [or(i_baffle(2):end)' oz(i_baffle(2):end)']; vesrz(domain_bound(7),1:2)]';
+         romrz{5}(1:2,:) = [vesrz(domain_bound(8):domain_bound(9),1:2); [ir(i_baffle(2):end)' iz(i_baffle(2):end)']; vesrz(domain_bound(8),1:2)]';
+geometry.romrz = romrz;
+geometry.domain_bound = domain_bound;
+geometry.vesrz = vesrz;
+geometry.ir = ir;
+geometry.or = or;
+geometry.iz = iz;
+geometry.oz = oz;
+
+plot(geometry.ir,geometry.iz,'b','LineWidth',1); hold on;
+plot(geometry.or,geometry.oz,'b','LineWidth',1); 
+plot(vesrz(:,1), vesrz(:,2),'k','LineWidth',2); %hold off;
+   for irom = 1:5
+            plot(romrz{irom}(1,:),romrz{irom}(2,:))
+   end       
+axis equal; xlabel('r [m]'); ylabel('z [m]'); hold off;
+
+
+end
+

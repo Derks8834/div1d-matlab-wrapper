@@ -1,0 +1,162 @@
+function input2latex_stag(input)
+% function to plot latex table of DIV1D inputs with core-SOL
+% Author: Gijs Derks
+% E-mail: g.l.derks@differ.nl
+% Sept 2024
+
+% in case you want to specify other params for running with 2 targets
+
+shots = input.shots;
+%puff = input.puff;
+L = input.L;
+L_core_SOL = input.L_core_SOL;
+X_core_SOL
+Q_core = input.Q_core;
+Gamma_core = input.Gamma_core;
+sintheta_mid = input.sintheta_mid;
+sintheta_tari = input.sintheta_tari;
+sintheta_taro = input.sintheta_taro;
+lambda_mid = input.width_mid;
+lambda_tari = input.width_tari;
+lambda_taro = input.width_taro;
+maj_rad= input.major_radius;
+expansion_totali = input.expansion_totali;
+expansion_totalo = input.expansion_totalo;
+expansion_fluxi = input.expansion_fluxi;
+expansion_fluxo = input.expansion_fluxo;
+expansion_transi=input.expansion_transi;
+expansion_transo=input.expansion_transo;
+neutral_density_divo_E = input.neutral_density_divo_E;
+neutral_density_divi_E = input.neutral_density_divi_E;
+
+neutral_density_cor_E = input.neutral_density_cor_E;
+try 
+neutral_density_divo_I = input.neutral_density_divo_I;
+neutral_density_divi_I = input.neutral_density_divi_I;
+neutral_density_mdivo_I = input.neutral_density_mdivo_I;
+neutral_density_mdivi_I = input.neutral_density_mdivi_I;
+neutral_density_mdivi_E = input.neutral_density_mdivi_E;
+neutral_density_mdivo_E = input.neutral_density_mdivo_E;
+catch; end
+neutral_density_cor = input.neutral_density_cor;
+neutral_density_divi = input.neutral_density_divi;
+neutral_density_divo = input.neutral_density_divo;
+carbon_concentrationi = input.carbon_concentrationi;
+carbon_concentrationo = input.carbon_concentrationo;
+try 
+core2solflux = input.flux_i_core2sol;
+sol2divflux = input.flux_i_sol2div;
+mfp_ion_h4215 = input.mfp_ion_h4215; % mean free path ionization
+gamma_omp = input.gamma_omp; % shielding factor
+lambda_te = input.lambda_te;
+catch
+
+end
+
+
+fprintf('|c|r|r|r|r|r|r|r|r|r|c| \n')
+fprintf('SOLPS')
+fprintf(' & %i ',shots)
+fprintf('& [-]\\\\ \\hline \n')
+
+fprintf('\\verb|L_{core}|')
+fprintf('& %2.2f ',L_core_SOL)
+fprintf('& [m] \\\\ \n')
+
+fprintf('\\verb|L_{div}|')
+fprintf('& %2.2f ',L-L_core_SOL-X_core_SOL)
+fprintf('& [m] \\\\ \n')
+
+fprintf('\\verb|major_radius|')
+fprintf('& %1.3f ',maj_rad)
+fprintf('& [m] \\\\ \\hline \n')
+
+fprintf('\\verb|lambda_core|')
+fprintf('& %1.3f ',lambda_mid)
+fprintf('& [m] \\\\ \\hline \n')
+
+fprintf('\\verb|lambda_div|')
+fprintf('& %1.3f ',lambda_taro)
+fprintf('& [m] \\\\ \\hline \n')
+
+fprintf('\\verb|sintheta_core|')
+fprintf('& %1.3f ',sintheta_mid)
+fprintf('& [-] \\\\ \\hline \n')
+
+fprintf('\\verb|sintheta_div|')
+fprintf('& %1.3f ',sintheta_taro)
+fprintf('& [-] \\\\ \\hline \n')
+
+fprintf( '\\verb|Q_{core}|')
+fprintf('& %2.2f ',Q_core/10^6)
+fprintf('& [MW] \\\\ \n')
+
+fprintf( '\\verb|Gamma_{core}|')
+fprintf('& %2.2f ',Gamma_core/10^21)
+fprintf('&[#10^{21}s^{-1}] \\\\ \n')
+
+
+fprintf( '\\verb|car_con|')
+fprintf('& %1.3f ',carbon_concentrationo)
+fprintf('& [-] \\\\ \n')
+
+fprintf( '\\verb|nb_core|')
+fprintf('& %1.2e ',neutral_density_cor_E)
+fprintf('& [m^{-3}] \\\\ \n')
+fprintf( '\\verb|nb_div|')
+fprintf('& %1.2e ',neutral_density_divo_E)
+fprintf('& [m^{-3}] \\\\ \n')
+
+try
+fprintf( '\\verb|nb_mdiv_I|')
+fprintf('& %1.2e ',neutral_density_mdivo_I)
+fprintf('& [m^{-3}] \\\\ \n')
+fprintf( '\\verb|nb_div_I|')
+fprintf('& %1.2e ',neutral_density_divo_I)
+fprintf('& [m^{-3}] \\\\ \n')
+
+fprintf( '\\verb|nb_mcore|')
+fprintf('& %1.2e ',neutral_density_mdivo_E)
+fprintf('& [m^{-3}] \\\\ \n')
+fprintf( '\\verb|nb_mdiv_E|')
+fprintf('& %1.2e ',neutral_density_mcor_E)
+fprintf('& [m^{-3}] \\\\ \n')
+catch end
+
+fprintf( '\\verb|nn_core|')
+fprintf('& %1.2e ',neutral_density_cor)
+fprintf('& [m^{-3}] \\\\ \n')
+fprintf( '\\verb|nn_div|')
+fprintf('& %1.2e ',neutral_density_divo)
+fprintf('& [m^{-3}] \\\\ \n')
+
+fprintf( '\\verb|fl_exp|')
+fprintf('& %1.2f ',expansion_flux)
+fprintf('& [-] \\\\ \n')
+fprintf( '\\verb|tr_exp|')
+fprintf('& %1.2f ',expansion_trans)
+fprintf('& [-] \\\\ \n')
+
+fprintf( '\\verb|Gam_core2sol|')
+fprintf('& %1.2e ',core2solflux)
+fprintf('& [#/s] \\\\ \n')
+
+fprintf( '\\verb|Gam_sol2div|')
+fprintf('& %1.2e ',sol2divflux)
+fprintf('& [#/s] \\\\ \n')
+
+
+fprintf( '\\verb|lambda_te_omp|')
+fprintf('& %1.2f ',lambda_te)
+fprintf('& [m] \\\\ \n')
+
+
+
+fprintf( '\\verb|mfp_ion/lambda_te_omp|')
+fprintf('& %1.2f ',gamma_omp)
+fprintf('& [-] \\\\ \n')
+
+
+fprintf('\n \n')
+
+end

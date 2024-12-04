@@ -1,0 +1,43 @@
+function [position] = get_temperature_front(o,grid,Tfront)
+% [position] = get_temperature_front(o,in,Tfront) Summary of this function goes here
+%  obtain timeseries for temperature front
+
+pause(0.5)
+disp('1');
+x = grid.x;
+Nx = length(x);
+[Nt, Nx] = size(o);
+position = zeros(1,Nt);
+
+% if grid.i_xpoint(1) > 1 % get inner
+% 
+% end
+L = max(x);
+indexes = grid.i_xpoint(2):length(x);
+searching_front = true;
+iter = lengt(x);
+for t = 1:Nt
+while searching_front
+    iter = iter-1;
+    if o(t,iter) > Tfront
+    searching_front = false;
+    position(t) = interp1(o(t,index),x(indexes(i:i+1)),Tfront,'linear');
+    end
+end 
+end
+
+for t = 1:Nt
+    position(t) = L;
+for i = length(indexes)-1:-1:1
+    if o(t,i) < Tfront
+    position(t) = interpn(o(t,indexes(i:i+1)),x(indexes(i:i+1)),Tfront,'linear');
+    end
+end
+end
+
+% for i = 2:Nt
+% position(i) = interpn(o(i,:),x,Tfront,'linear',L);
+% end
+%position = 1;
+end
+
