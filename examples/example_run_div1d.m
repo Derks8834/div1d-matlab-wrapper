@@ -116,7 +116,17 @@ plotdiv1d_v600(output,input)
 % this will print for you the settings that you need to obtain a stationary
 % SOL in the vicinity of your original solution without evolving the
 % reservoirs WARNING THIS MAY BE VERY UNPHYSICAL
-
+% pasted the outcome
+phypar.initial_ncore = 4.000000000E+19;
+phypar.core_confinement_time = 2.222222222E-02;
+phypar.core_ext_neutral_pump = [0.000000000E+00 0.000000000E+00 0.000000000E+00 0.000000000E+00 2.078860825E+02];
+phypar.core_fuelling = 1.000000000E+01;
+phypar.extern_neutral_ex = [0.000000000E+00 0.000000000E+00 7.379585459E+03];
+phypar.extern_molecule_ex = [0.000000000E+00 0.000000000E+00 5.797949912E+02];
+phypar.puff_rate_neutral =[0.000000000E+00 0.000000000E+00 3.804314082E+21 0.000000000E+00 4.067216865E+23];
+phypar.puff_rate_molecule =[0.000000000E+00 0.000000000E+00 9.856514850E+18 5.000000000E+21 5.000000000E+21];
+phypar.pump_rate_n =[0.000000000E+00 0.000000000E+00 0.000000000E+00 4.963966973E+04 0.000000000E+00];
+phypar.pump_rate_m =[0.000000000E+00 0.000000000E+00 0.000000000E+00 6.354460318E+03 1.803751804E+02];
 
 
 % simulate again
@@ -126,11 +136,14 @@ numpar.evolve_background = [0 0 1 1 1];
 simulation_path2 = './aug_simple_ppcf2024_reservoir/';
 
 [proceed] =write_input(numpar,phypar); 
+if proceed
+run_div1d_code('','runs_path',simulation_path2,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
+end
+% this may take a while .... 
 
-run_div1d_code(simulation_path2,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
 
-
-[output2,input2]= div1dread_v600(strcat(simulation_path,'div1d_output.txt'));
+%%
+[output2,input2]= div1dread_v600(strcat(simulation_path2,'div1d_output.txt'));
 
 %% inspect the outcome
 close all;
