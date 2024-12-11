@@ -1,5 +1,5 @@
 numpar = struct;
-numpar.Nx = int64(Nx);
+numpar.Nx = int64(500);
 numpar.ntime = int64(20000);
 numpar.dxmin = dxmin;
 numpar.delta_t = 1e-6;
