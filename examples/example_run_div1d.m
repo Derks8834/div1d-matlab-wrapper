@@ -1,215 +1,143 @@
-% script to run a series of div1d runs from matlab
+% script to run div1d standalone from matlab
 
 % Author: Gijs Derks
 % E-mail: g.l.derks@differ.nl
-% July 2023
+% Dec 2024
 
-clearvars; close all; clc;
-
-if isunix
-    % div1dpath = '/home/unix/derks/codes/div1d/';
-    codepath = '/home/unix/derks/codes/div1d_neutrals/div1d/';
-    objpath   = strcat(codepath, "/obj");
-%     runbranch = "code_test/extern_neutral_chambers";
-    runbranch 
-    simpath = strcat(codepath,'/runs/',runbranch);
-    addpath(objpath); % div1d should be compiled here
-    addpath(strcat(codepath, "runs"));  
-    % check if code and inputfile are in their location
-    if ~isfile(strcat(objpath, "/div1d.exe"))
-        disp('div1d.exe either does not exist of is not available')
-    else 
-        disp('div1d.exe found')
-    end
-    if ~isfile(strcat(simpath,"/input.txt"))
-        disp('code input file not found')
-    else
-        disp('code input file found')
-    end
-    %div1d_restart_file_path = '/home/unix/derks/codes/div1d/runs/code_test/';
-elseif ispc
-    % not supported yet
-elseif ismac
-    % not supported yet
-end
-
-% FORTRAN I/O
-if ismac
-    addpath("namelist/__MACOSX/");
-else
-    addpath("namelist");
-end
-
-
-%% General
-user = 'derks';
-date_str = date;  
-tag = 'v4.0.2';  
 
 %% read one of the tests:
-try
-[output,input] = read_output(runbranch,'version','v4.0.0','div1d_install_path',codepath);
-catch
-error('Cannot locate output of the integrated test in the DIV1D repository, did it run in : %s?', runbranch)
+
+% first you have to compile the code and run the test
+% make sure you have ifortran version 19 or later installed
+% go into the div1d repository and use following commands
+% Make ( if this produces an error, let me know)
+%./test_div1d.sh
+% Type 12: -> test 12 should run and take less than 5 minutes. 
+% If now in int-test/12_TCV_dynamics/ you see div1d_output.txt, we are in business. 
+
+% add div1d to path as the test is located there.
+addpath(genpath('./div1d_astra'))
+% current-directory; div1d-matlab-wrapper
+addpath(genpath('./')) 
+
+% read and plot the outcome
+[output,input]= div1dread_v600('/home/unix/derks/Desktop/codes/div1d_public/div1d_astra/int-tests/12_TCV_dynamics/div1d_output.txt');
+plotdiv1d_v600(output,input)
+figure(88)
+plot_div1d_polgeom(input)%% Settings of simulation/experiment
+
+% post-process the outcome and perform code-checks
+[proc] = process_div1d_output_v600(output,input,'ploterror',1,'plotbal',1);
+% note that new versions of matlab support function arguments by default,
+% however, in all repos here, we have our own varargin function argument
+% parsing that also works on computer clusters which are not on matlab 2022
+% or later.
+
+
+
+%% setup a simulation of your own.
+
+%%% Go out of the div1d-matlab-wrapper and have as sub-folders:
+% div1d_astra
+% div1d-matlab-wrapper
+% then continue
+
+run aug_simple_ppcf2024  % this is a simple case similar to the article
+
+% setup what type of run you want
+% do not run with core and neutral reservoirs
+numpar.evolve_core = 0;
+numpar.evolve_background = [0 0 0 0 0];
+% do not run with neutral momentum and molecules 
+numpar.evolve_neutral_momentum = 0;
+numpar.evolve_molecule = 0.0;
+% (div1d did not have these features when ppcf2024 was published)
+
+% the following should be set to run a global particle balance simulation
+% phypar.extern_molecule_density = ..
+% phypar.core_confinement_time = 6.736841689E-02;
+% phypar.core_ext_neutral_pump = [0.000000000E+00 0.000000000E+00 0.000000000E+00 0.000000000E+00 1.441199180E+03];
+% phypar.core_fuelling = 1.000000000E+01;
+% phypar.extern_neutral_ex = [0.000000000E+00 0.000000000E+00 7.379585459E+03];
+% phypar.extern_molecule_ex = [0.000000000E+00 0.000000000E+00 5.797949912E+02];
+% phypar.puff_rate_neutral =[0.000000000E+00 0.000000000E+00 -2.729660830E+20 -1.816175340E+21 3.489192769E+21];
+% phypar.puff_rate_molecule =[0.000000000E+00 0.000000000E+00 6.207295765E+20 -1.483974546E+21 -1.751297196E+20];
+% phypar.pump_rate_n =[0.000000000E+00 0.000000000E+00 1.000000000E+00 1.000000000E+00 1.000000000E+00];
+% phypar.pump_rate_m =[0.000000000E+00 0.000000000E+00 1.000000000E+00 1.000000000E+00 1.000000000E+00];
+
+% write your input files (these are going in your current directory)
+[proceed] =write_input(numpar,phypar); 
+% for dynamic simulations you have to specify time-varying inputs in dat
+% files
+% dat = struct; 
+%       [proceed] =write_input(numpar,phypar,'dat',dat);
+% type help write_input for more information (or look in the function)
+% Without errors, proceed = true
+
+% define simulation folder and directories
+div1d_install_path = '/home/unix/derks/Desktop/codes/div1d_public/div1d_astra/'; % point to your instalation
+simulation_path = './aug_simple_ppcf2024/';
+runnit = 1; % turn to 0 to first check if all files are written correctly
+nohup = 0; % to have div1d write into nohup.out on simulation progress
+datinput = 0; % set to 1 to look for time-dependent .dat files and parse them to div1d
+if proceed
+run_div1d_code('','runs_path',simulation_path,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
 end
+% note that new versions of matlab support function arguments by default,
+% however, in all repos here, we have our own varargin function argument
+% parsing that also works on computer clusters which are not on matlab 2022
+% or later.
 
-%% Settings of simulation/experiment
-time = 10e-3;   % [s]
-delta_t = 1e-6; % [s]
-ntime = round(time/delta_t,0);
-out_delta_t = 1e-4; % [s]
-nout = round(out_delta_t/delta_t,0); % write output every nout steps
-type = 'dyn'; % static runs to fit on with restart to see viscocity
+%% wait a while
+% input('wait for the simulation to finish'); 
+% in this case nohup =0 so you will see when it is finished.
 
-puffing_source = 4*10^20;
-% Recycling (generally higher for D than N)
-base_R = 0.99;
-% Fraction Redistributed
-base_fR = 0.5;
-% Tau 
-base_tn = 1;
-% arteficial viscosity
-% viscosity = [0.04 0.2 0.6 1 3 5];
-viscosity = 5;
-% radial loss factor
-RL = 0.5;
+%% inspect outcome
 
-%% Loop
-for imet = 1:length(solps_extr_meth)
+[output,input]= div1dread_v600(strcat(simulation_path,'div1d_output.txt'));
+plotdiv1d_v600(output,input)
+%figure(88) % no geometry was properly set for this demo
+%plot_div1d_polgeom(input)%% Settings of simulation/experiment
 
+% post-process the outcome and perform code-checks
+[proc] = process_div1d_output_v600(output,input,'ploterror',1,'plotbal',1);
 
-method      = solps_extr_meth{imet};
-solps_num   = shot_num;
-shot_data_solps = strcat('./../SOLPS/data/TCV',num2str(solps_num));
+%% now if you want to simulate with the reservoirs (!!WIP!!)
+% obviously you want to keep in steady state the scrape-off layer solution
+% in that case try:
+[ ~,reservoir_settings] = get_div1d_chamber_params(input,output,...
+              'core_fuelling',1e1,'core_density',phypar.initial_n*4,...
+                                    'molecule_puff',[0 0 0 0.5 0.5]*1e22,...
+                                    'atom_puff',[0 0 0 0 0],...
+                                    'ato_pump',[0 0 1 1 1]*40,...
+                                    'mol_pump',[0 0 1 1 1]*40,...
+                                    'print',1); 
 
-% load solps data
-load(strcat(shot_data_solps,'.mat')); 
-tmp = SOLPS2DIV1D_dev(shot);
+% this will print for you the settings that you need to obtain a stationary
+% SOL in the vicinity of your original solution without evolving the
+% reservoirs WARNING THIS MAY BE VERY UNPHYSICAL
 
 
-for iscan = 1 %:length(viscosity)
-    R  = base_R;%list_R(iscan);% 0.8;
-    fR = base_fR;%list_fR(iscan);%base_fR; %0.8; 
-    tn = base_tn;%list_tn(iscan);%base_tn;%1d-4;
-    eta = 5;%viscosity(iscan);
-    
-    try
-        car_frc = list_car_frc(iscan);
-    catch
-        car_frc = round(median(tmp.(method).data.cratio(:,1)),3); 
-    end
-    %       data=read_namelist('input.test','INDATA');
-%       fid=fopen('input.test_out','w');
-%       write_fortran_namelist(fid,data,'INDATA');
-%       fclose(fid);
 
-% Load default input parameters
-     [numpar,phypar] = default_input;
+% simulate again
+numpar.evolve_core = 1; % this is a very bad core model...
+numpar.evolve_background = [0 0 1 1 1];
 
-% Change  parameters
-    numpar{01,1} = 'restart';                   numpar{01,2} = '.true.';% was: .true.
-    numpar{02,1} = 'Nx';                        numpar{02,2} = 500; %default 500
-    numpar{04,1} = 'ntime';                     numpar{04,2} = ntime;
-    numpar{05,1} = 'nout';                      numpar{05,2} = nout;
-    numpar{06,1} = 'delta_t';                   numpar{06,2} = delta_t;
-    numpar{12,1} = 'viscosity';                 numpar{12,2} = eta; %default in code = 0.04
-    
-    phypar{01,1} = 'initial_n';                 phypar{01,2} = abs(tmp.(method).data.ne(1,1));%2.50*1e19;
-    phypar{02,1} = 'initial_v';                 phypar{02,2} = 0.0d+5;
-    phypar{03,1} = 'initial_T';                 phypar{03,2} = mean(tmp.(method).data.te(:,1));%10.4d+01
-    phypar{04,1} = 'initial_a';                 phypar{04,2} = mean(tmp.(method).data.na_correct(:,1));%1d+13;
-    phypar{05,1} = 'gamma';                     phypar{05,2} = 6.0d+0;
-    phypar{06,1} = 'mass';                      phypar{06,2} = 3.3436d-27;
-    phypar{07,1} = 'q_parX';                    phypar{07,2} = abs(tmp.(method).data.qpar(1,1));%2.935d+07;
-    phypar{08,1} = 'Gamma_X';                   phypar{08,2} = 0.0d+24;
-    phypar{09,1} = 'energy_loss_ion';           phypar{09,2} = 3.0d+1;
-    phypar{10,1} = 'neutral_residence_time';    phypar{10,2} = tn;%1.0d-4;%         default for my runs: 1.0d-41d+20; % was 1.0d-4 in slide acht van pptx 1-28-2020 (DIV1D Density scan)
-    phypar{11,1} = 'redistributed_fraction';    phypar{11,2} = fR;%0.8; %           default for my runs: 0.8 was 0.8 in the above
-    phypar{12,1} = 'carbon_concentration';      phypar{12,2} = car_frc;% median less affected by high target 1d-2;
-    phypar{13,1} = 'L';                         phypar{13,2} = round(tmp.(method).geom.dspar(1,1),2); %7.065;
-    phypar{14,1} = 'recycling';                 phypar{14,2} = R;%74/100;%1; % default for my runs: 74/100;
-    phypar{15,1} = 'sintheta';                  phypar{15,2} = round(tmp.(method).data.sintheta(1),3);%6.460d-02;
-    phypar{16,1} = 'case_AMJUEL';               phypar{16,2} = '.true.';
-    phypar{17,1} = 'minimum_temperature';       phypar{17,2} = 0.1d-0;
-    phypar{18,1} = 'gas_puff_source';           phypar{18,2} = puffing_source;
-    phypar{19,1} = 'gas_puff_location';         phypar{19,2} = 5.5d+0;
-    phypar{20,1} = 'gas_puff_width';            phypar{20,2} = 1.0d+20;
-    phypar{21,1} = 'elm_start_time';            phypar{21,2} = 1000;
-    phypar{22,1} = 'elm_ramp_time';             phypar{22,2} = 500;
-    phypar{23,1} = 'elm_time_between';          phypar{23,2} = 2d+3;
-    phypar{24,1} = 'elm_expelled_heat';         phypar{24,2} = 0d+3;
-    phypar{25,1} = 'elm_expelled_particles';    phypar{25,2} = 0d+18;
-    phypar{26,1} = 'switch_elm_heat_flux';      phypar{26,2} = 0;
-    phypar{27,1} = 'switch_elm_density';        phypar{27,2} = 0;
-    phypar{28,1} = 'switch_elm_series';         phypar{28,2} = 0;
-    phypar{29,1} = 'radial_loss_factor';        phypar{29,2} = RL;
-%   phypar{30,1} = 'radial_loss_gaussian';      phypar{30,2} = 0;
-%   phypar{31,1} = 'radial_loss_width';         phypar{31,2} = 7/6;
-%   phypar{32,1} = 'radial_loss_location';      phypar{32,2} = 3.0;
-    phypar{33,1} = 'switch_dyn_nu';             phypar{33,2} = 1;
-    phypar{34,1} = 'switch_dyn_gas';            phypar{34,2} = 1;
-    phypar{35,1} = 'switch_dyn_rec';            phypar{35,2} = 1;
-    phypar{36,1} = 'switch_dyn_rad_los';        phypar{36,2} = 1;
-    phypar{37,1} = 'switch_car_con_prf';        phypar{37,2} = 1;
-    
-  
-    dyn_nu = ones(1,ntime)*phypar{01,2} + [zeros(1,floor(ntime/5)) ones(1,ntime-floor(ntime/5))]*1*10^18; 
-    dyn_gas = ones(1,ntime)*phypar{18,2} + [zeros(1,floor(ntime/4)) ones(1,ntime-floor(ntime/4))]*1*10^20;
-    dyn_rec = ones(1,ntime)*phypar{14,2} - [zeros(1,floor(ntime/2)) ones(1,ntime-floor(ntime/2))]*0.05 ;
-    dyn_rad_los =ones(1,ntime)*phypar{29,2} - [zeros(1,floor(ntime/3)) ones(1,ntime-floor(ntime/3))]*0.05;
-    
-% Write input
-    description = 'test dynamic inputs and carbon profile';
-    write_input(numpar,phypar,'nu',dyn_nu,'gas',dyn_gas,'R',dyn_rec,'RL',dyn_rad_los,'description',description);
-   
-% Save logic
-% directory logic
-%     shot   vers.  type settings
-% 'TCV150683_v1.0.0_stat_maxqt_vis0.9_nu2_qu30_gv0_R74_fRd80/'
-%
-% struct logic (.mat)
-%  shot.type.settings. (information)
-%  (information: tag, user, date, output)
-    
-% Define directory
-% (e.g.'TCV150683_v1.0.0_stat_maxqt_vis0.9_nu2_qu30_gv0_R74_fRd80/')
-%     strucdir = [method,'_',...
-%             'vis', num2str(numpar{12,2}),'_', ... viscocity
-%             'neu', num2str(round(phypar{01,2}/10^19,1)),'_',... ne upstream
-%             'qu', num2str(round(phypar{07,2}/10^6,1)),'_',... qpar upstream
-%             'gv', num2str(phypar{18,2}),'_',... Gas Valve
-%             'R', num2str(phypar{14,2}),'_',...  Recycling
-%             'fR', num2str(phypar{11,2}),'_',... fraction redistributed
-%             'tn', num2str(phypar{10,2})];%  neutral residence time   
-        
-%     dir = ['TCV',num2str(solps_num),'_',... 
-%             tag,'_',...
-%             type,'_',...
-%             strucdir];
-%         dir = 'test_dyn_input_29_06';
-% %     strucdirm = strrep(strucdir, '.', ''); % matlab structure field name
-%         strucdirm = 'test_dyn_input_29_06';
-        
-% Run DIV1D
-%     runnit = 0; % you can either run this directory or read the output, not yet sequentially. 
-%     if runnit ==1
-%         %run_program(dir,'run_div1d',1,'nohup',1); % it is possible to run on the background
-%         run_program(dir,'run_div1d',1,'restart_file_path', div1d_restart_file_path );% just make the input files
-%     else % read the output and save to .mat struct
-%         output =  read_output(dir,'branch_path',div1d_branch_path);
-%         savepath    = strcat('./DIV1D/',shot_data_solps,'.mat');
-%         try 
-%         load(savepath);
-%         catch
-%         disp('making new .mat')
-%         end
-%          shot.div1d.(type).(strucdirm).output   = output;
-%          shot.div1d.(type).(strucdirm).tag      = tag;
-%          shot.div1d.(type).(strucdirm).date     = date_str;
-%          shot.div1d.(type).(strucdirm).usr      = user;
-% 
-%         save(savepath,'shot')
-%     end
-end    
-end
- 
+simulation_path2 = './aug_simple_ppcf2024_reservoir/';
+
+[proceed] =write_input(numpar,phypar); 
+
+run_div1d_code(simulation_path2,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
+
+
+[output2,input2]= div1dread_v600(strcat(simulation_path,'div1d_output.txt'));
+
+%% inspect the outcome
+close all;
+plotdiv1d_v600(output,input)
+plotdiv1d_v600(output2,input2)
+% figure(88) % no geometry was properly set for this demo
+% plot_div1d_polgeom(input2)%% Settings of simulation/experiment
+
+% post-process the outcome and perform code-checks
+[proc2] = process_div1d_output_v600(output2,input2,'ploterror',1,'plotbal',1);
