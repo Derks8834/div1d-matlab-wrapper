@@ -351,7 +351,7 @@ fclose(fid);
     end
    end
 
-   if min(phypar.puff_rate_molecule)< -0.5  % molecule puffing;
+   if phypar.puff_rate_molecule(1) == -1 %-0.5  % molecule puffing;
             dyn_molecule_puff = dat.molecule_puff;
     if length(dyn_molecule_puff) >1
         logtmp = (size(dyn_molecule_puff) == [5,ntime+1]);
@@ -368,7 +368,7 @@ fclose(fid);
     end
    end
  
-    if min(phypar.puff_rate_neutral)< -0.5  % neutral atom puffing;
+    if phypar.puff_rate_neutral(1) == -1 % -0.5  % neutral atom puffing;
             dyn_neutral_puff = dat.neutral_puff;
     if length(dyn_neutral_puff) >1
         logtmp = (size(dyn_neutral_puff) == [5,ntime+1]);

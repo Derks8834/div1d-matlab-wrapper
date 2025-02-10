@@ -29,7 +29,11 @@ D.S2PM = 0;
 D.D2PM = 0;
 D.cratio = 0; % in percentage
 D.dxmin = 0.05; 
+try
 D.Ntime = length(o.time); %,i.numerics.ntime);
+catch % for the library this is not there, time is relative
+D.Ntime = 1; %
+end
 D.flip = 1;
 D.FontSize = 11;%2;
 D.fignum = 10;
@@ -72,7 +76,14 @@ end
 figure(P.fignum)
 % temperature
 subplot(2,3,1, 'FontSize', P.FontSize)
+try
 plot(x,o.temperature(Nt,:), 'LineWidth', P.LineWidth);  grid on;
+catch
+    Nt = 1; % this happens when you try to plot library outputs
+    plot(x,o.temperature(Nt,:), 'LineWidth', P.LineWidth);  grid on;
+
+end
+
 if P.hold == 1;  hold on; end
 ylabel('temperature [eV]');
 xlabel(xstr); 
@@ -95,7 +106,12 @@ xlabel(xstr);
 if P.flip ==1; set(gca,'XDir','reverse');end
 % atoms
 subplot(2,3,4, 'FontSize', P.FontSize)
-semilogy(x,o.neutral_density(Nt,:), 'LineWidth', P.LineWidth);  grid on;
+try
+semilogy(x,o.neutral(Nt,:), 'LineWidth', P.LineWidth);  grid on;
+catch
+semilogy(x,o.neutral_density(Nt,:), 'LineWidth', P.LineWidth);  grid on;  
+end
+
 if P.hold == 1;  hold on; end
 ylabel('atoms [/m3]');
 xlabel(xstr); 
@@ -407,6 +423,7 @@ title('outer pfr target flux');
 
 
 %% dynamic inputs
+try
 dynstr = fields(i.dynamic);
 %ncol = jet(5);
 T = ceil(length(dynstr)/3);
@@ -427,6 +444,8 @@ for iplot = 1:length(dynstr)
 %     end
        
 
+end
+catch
 end
 
 

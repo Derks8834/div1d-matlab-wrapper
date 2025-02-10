@@ -1,7 +1,7 @@
 numpar = struct;
-numpar.Nx = int64(500);
+numpar.Nx = int64(Nx);
 numpar.ntime = int64(20000);
-numpar.dxmin = 0.05;
+numpar.dxmin = dxmin;
 numpar.delta_t = 1e-6;
 numpar.abstol = 1e-6;
 numpar.reltol = 1e-6;
@@ -17,7 +17,7 @@ phypar = struct;
 phypar.alpha_core_profile_n = 1; 
 phypar.gamma        = 6.0;
 phypar.L            = 24.1;
-phypar.L_core_SOL   = phypar.L-9.3; 
+phypar.L_core_SOL   = L-9.3; 
 phypar.X_core_SOL   = 0;
 phypar.flux_expansion = 1.08; 
 phypar.impurity_concentration = [1 0 0 0 0]*0.00; 
@@ -25,7 +25,7 @@ phypar.neutral_energy = 5; % the 0.5 eV in Derks PPCF2024 is too low.
 
 phypar.redistributed_fraction = 0; 
 phypar.switch_imp_distribution = int64(0);
-phypar.initial_a = 1e16;
+phypar.initial_a = mean(inputs.neutral_density);
 phypar.initial_n = 1e19;
 phypar.initial_t = 100;
 

@@ -326,6 +326,8 @@ reservoir.mol.dt = reservoir.mol.sol2ext_mol...
                  + reservoir.mol.ext2ext_mol;
 reservoir.mol.error = reservoir.mol.dt./o.extern_molecule_density(Ntime,:);
 
+% calculate sol leakage fluxes
+
 % sol reservoir balance
 reservoir.sol.ext2sol_flux = sum(o.extern2sol_flux(Ntime,:));
 reservoir.sol.ext2sol_mol_D = 2*sum(o.extern2sol_mol(Ntime,:));
@@ -351,6 +353,20 @@ reservoir.sol.flows = abs(reservoir.sol.ext2sol_mol_D) ...
                 + abs(reservoir.sol.tar2ext_mol_D)...
                 + abs(reservoir.sol.farsol_ion)...
                 + abs(reservoir.sol.gamma_core);
+reservoir.sol.dtdflows = reservoir.sol.dt/reservoir.sol.flows; % this is some sort of error?
+reservoir.sol.particles = sum((o.neutral_density(:,:) + o.molecule(:,:)*2 +o.density(:,:)).*in.grid.volumes,2);
+
+
+reservoir.tot = sum(2*(reservoir.mol.puff - reservoir.mol.pump) + reservoir.ato.puff - reservoir.ato.pump);
+reservoir.soltarget.wet_area_sol = in.grid.sol_width_pol_cb(end)*2*pi*in.grid.r_cb(end)*in.grid.sintheta_cb(end);
+reservoir.soltarget.wet_area_tar = in.grid.sol_width_pol_cb(end)*2*pi*in.grid.r_cb(end);
+reservoir.soltarget.wet_area_div1d = in.grid.volumes(end)/ diff(in.grid.xcb(end-1:end));
+reservoir.soltarget.ion_target = o.Gamma_n(end,end)*reservoir.soltarget.wet_area_sol; 
+reservoir.soltarget.ato_recycl = o.Gamma_neutral(end,end)*reservoir.soltarget.wet_area_sol;
+reservoir.soltarget.mol_recycl_D = 2*o.Gamma_molecule(end,end)*reservoir.soltarget.wet_area_sol;
+reservoir.soltarget.sum_fluxes_D = reservoir.soltarget.ion_target + reservoir.soltarget.ato_recycl + reservoir.soltarget.mol_recycl_D;
+% parallel fluxes are also defined in this direction so this is the area
+% that we use to multiplgedity with parallel fluxes to obtain particles/s
 
 % balances
 bal = struct;
@@ -360,6 +376,7 @@ bal.ene = ene;
 bal.ato = ato;
 bal.anv = anv;
 bal.mol = mol;
+
 
 
  % return processed terms    
@@ -386,8 +403,8 @@ fprintf('core     : %e \n', cor.error);
 fprintf('sol dt   : %e \n',reservoir.sol.dt);
 % end
 fprintf('ato res  : %f %f %f %f %f \n',reservoir.ato.error);
-fprintf('mol res  : %f %f %f %f %f \n \n',reservoir.mol.error);
-
+fprintf('mol res  : %f %f %f %f %f \n ',reservoir.mol.error);
+fprintf('tot bal  : %e \n',reservoir.tot)
 
 %% check boundary conditions
 % the boundary conditions in div1d are set for the fluxes at the target:
@@ -619,3 +636,65 @@ out.Derror = error;
 
 end
 
+function calculate_sol_leakage_neutral_sources(flux,source,A,V)
+    % flux::is the calculated flux denstiy on the cell boundaries
+    % source:: is the apparant source from leakage of neutrals in cell
+    % volumes
+    % A and V are the volumes and areas of the neutral cells. 
+    source = zeros(1,Nx);   
+    % loop over boundaries?
+    % maybe better to loop over cells.
+    for ix = 1:Nx-1
+     if flux(ix) > 0 && A(ix) > A(ix+1) % positive from large to small
+        source(ix) = source(ix) -A(ix) * flux(ix) / V(ix);
+        source(ix+1) = source(ix+1) + A(ix+1) * flux(ix) / V(ix+1);
+     elseif flux(ix) < 0 && A(ix) > A(ix+1) % negative from small to large
+            S = A(ix+1) * flux(ix) / V(ix);
+		 	source(ix) = source(ix) - S;
+ 		 	source(ix+1) = source(ix+1) + S; 
+            % leakage
+     elseif flux(ix) > 0 && A(ix) < A(ix+1) % positive from small to large
+ 		 	source(ix) = source(ix) - A(ix) * flux(ix) / V(ix);
+ 		 	source(ix+1) = source(ix+1) + A(ix) * flux(ix) / V(ix+1);
+     else % negative from large to small
+            S = A(ix) * flux(ix) / V(ix);
+            % leakage
+         	source(ix) = source(ix) - S;
+ 		 	source(ix+1) = source(ix+1) + S;
+     end
+    end
+    source(1) = source(1) + A_wet(1)*flux(0) / volumes(1)
+	       source(Nx) = source(Nx) - A_wet(2)*flux(Nx) / volumes(Nx)
+end
+
+% subroutine calculate_sol_leakage_neutral_sources(flux, source)
+% 	real( wp ), intent(in) :: flux(0:Nx)
+% 	real( wp ), intent(out) :: source(Nx)
+% 	integer 		:: ix
+% 	source = 0.0d+0
+% 	do ix = 1,Nx-1
+% 	 	if ((flux(ix) .ge. 0) .AND. (A_int(ix) .ge. A_int(ix+1))) then
+% 			! S(n)
+% 		 	source(ix) = source(ix) - A_int(ix) * flux(ix) / volumes(ix)
+% 			! S(n+1)
+% 		 	source(ix+1) = source(ix+1) + A_int(ix+1) * flux(ix) / volumes(ix+1)
+% 		else if ((flux(ix) .lt. 0) .AND. (A_int(ix) .ge. A_int(ix+1))) then
+% 			! S(n)
+% 		 	source(ix) = source(ix) - A_int(ix+1) * flux(ix) / volumes(ix)
+% 			! S(n+1)
+% 		 	source(ix+1) = source(ix+1) + A_int(ix+1) * flux(ix) / volumes(ix+1)
+% 		else if ((flux(ix) .ge. 0) .AND. (A_int(ix) .lt. A_int(ix+1))) then
+% 			! S(n)
+% 		 	source(ix) = source(ix) - A_int(ix) * flux(ix) / volumes(ix)
+% 			! S(n+1)
+% 		 	source(ix+1) = source(ix+1) + A_int(ix) * flux(ix) / volumes(ix+1)
+% 		else 
+% 			! S(n)
+% 		 	source(ix) = source(ix) - A_int(ix) * flux(ix) / volumes(ix)
+% 			! S(n+1)
+% 		 	source(ix+1) = source(ix+1) + A_int(ix+1) * flux(ix) / volumes(ix+1)
+% 		endif	
+% 	 enddo
+% 		source(1) = source(1) + A_int(0)*flux(0) / volumes(1)
+% 	        source(Nx) = source(Nx) - A_int(Nx)*flux(Nx) / volumes(Nx)
+%    end subroutine calculate_sol_leakage_neutral_sources 

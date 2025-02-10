@@ -1,5 +1,5 @@
 function [output,input] = div1dread_v600(path)
-%[output,input]= div1dread_v600(path) reads the output div1doutput.txt specified in path
+% div1dread_v600(path) reads the output div1doutput.txt specified in path
 
 % Author: Gijs Derks
 % E-mail: g.l.derks@differ.nl

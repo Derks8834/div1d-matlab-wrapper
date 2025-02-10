@@ -202,7 +202,7 @@ end
         position = generalposition + [400 300 0 0 ];
         set(gcf, 'OuterPosition',position);
     else
-       if ~isfig; ax.t = axes('Position',tpos, 'FontSize', P.FontSize-1); else; ax.t = fig.Children(6+plimp);  fig.CurrentAxes = ax.t; end; box on;
+        if ~isfig; ax.t = axes('Position',tpos, 'FontSize', P.FontSize-1); end %else; ax.t = fig.Children(6+plimp);  fig.CurrentAxes = ax.t; end; box on;
     end
     if P.hold == 1;  hold on; end
     plot(X,o.temperature(Ntime,:), 'LineWidth', P.LineWidth);  grid on;

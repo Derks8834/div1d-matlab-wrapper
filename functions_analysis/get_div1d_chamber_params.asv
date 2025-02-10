@@ -51,7 +51,6 @@ D.core_density = 0;
 D.tau_core = 0;
 % core sources
 D.core_fuelling = 0;
-D.switch_empty_core = 0;
 D.core_ext_molecule_pump = [0 0 0 0 0]; 
 D.core_ext_neutral_pump = [0 0 0 0 0];
 % reservoir circulating flows
@@ -122,7 +121,7 @@ elseif P.core_fuelling ~= 0 && sum(P.core_ext_neutral_pump + P.core_ext_molecule
     set.core_ext_neutral_pump = [0 0 0 0 0];
     required_flux2core = in.physics.gamma_core - set.core_fuelling -  out.sol2core_flux(end,1) - 2*out.sol2core_mol(end,1);
     set.core_ext_neutral_pump(5) = required_flux2core / out.extern_neutral_density(end,5)/ in.physics.extern_neutral_volumes(5);
-    disp('%for now only room 5 provides atoms to the core (no molecules)')
+    disp('%for now only room 5 provides only atoms to the core')
     extern2core_atoms = set.core_ext_neutral_pump.*out.extern_neutral_density(end,:).*in.physics.extern_neutral_volumes;
     extern2core_molecule=set.core_ext_molecule_pump.*out.extern_molecule_density(end,:).* in.physics.extern_neutral_volumes;
 else
@@ -130,22 +129,15 @@ else
 end
 
 if set.core_ext_neutral_pump(5)  < 0
-    if P.switch_empty_core ==0
     warning('%CORE CLOSURE REQUIRES PARTICLES TO FLOW FROM CORE TO PFR -> channel turned off')
     set.core_ext_neutral_pump(5) = 0;
-    else
-    warning('%Core closure requires particles to flow from core to PFR!!  ')
-    end
-    extern2core_atoms = set.core_ext_neutral_pump.*out.extern_neutral_density(end,:).*in.physics.extern_neutral_volumes;
-    extern2core_molecule=set.core_ext_molecule_pump.*out.extern_molecule_density(end,:).* in.physics.extern_neutral_volumes;
 end
 
 % check core balance:
 dncdt = -in.physics.gamma_core ... %( fixed by given sol solution )
        + out.sol2core_flux(end,1) + 2* out.sol2core_mol(end,1) ...
-       + sum(extern2core_atoms) + 2*sum(extern2core_molecule)...( set core_ext_molecule/neutral_pump )
-       + set.core_fuelling; % ( set core_fuelling )
-fprintf('%% core balance residual = %4.9E;\n',dncdt);
+       + sum(extern2core_atoms) + 2*sum(extern2core_molecule)...(set core_ext_molecule/neutral_pump )
+       + set.core_fuelling; % (set core_fuelling )
 
 %% reservoir balances
 % for both atoms and molecules
@@ -155,13 +147,7 @@ fprintf('%% core balance residual = %4.9E;\n',dncdt);
        %  +  extern flows             % ( set by extern_atom/molec_ex )
        %  +  puff                     % ( set by puff_rate_atom/molec )
        %  -  pump                     % ( set by pump_rate_n/m        )
-% reservoirs:
-% dnrdt =  out.sol2extern +  out.tar2extern... % ( fixed by given sol solution )
-%          -  extern2core            ...  % ( fixed by above core closure )
-%          +  sol2extern_ion          ... % ( fixed by given sol solution )
-%          +  extern flows           ...  % ( set by extern_atom/molec_ex )
-%          +  puff                   ...  % ( set by puff_rate_atom/molec )
-%          -  pump                   ...  % ( set by pump_rate_n/m        )
+
 % circulating flows
 vato = (e_charge*P.circflow_n_temp *8./ in.physics.mass./pi)^0.5;
 vmol = (e_charge*P.circflow_n_temp *8./ in.physics.mass./2./pi)^0.5;

@@ -33,15 +33,7 @@ plot_div1d_polgeom(input)%% Settings of simulation/experiment
 % parsing that also works on computer clusters which are not on matlab 2022
 % or later.
 
-
-
 %% setup a simulation of your own.
-
-%%% Go out of the div1d-matlab-wrapper and have as sub-folders:
-% div1d_astra
-% div1d-matlab-wrapper
-% then continue
-
 run aug_simple_ppcf2024  % this is a simple case similar to the article
 
 % setup what type of run you want
@@ -75,14 +67,13 @@ numpar.evolve_molecule = 0.0;
 % Without errors, proceed = true
 
 % define simulation folder and directories
-div1d_install_path = '/home/unix/derks/Desktop/codes/div1d_public/div1d_astra/'; % point to your instalation
-simulation_path = './aug_simple_ppcf2024/';
+div1d_install_path = './div1d_astra'; % point to your instalation
+simulation_path = './../aug_simple_ppcf2024/';
+
 runnit = 1; % turn to 0 to first check if all files are written correctly
 nohup = 0; % to have div1d write into nohup.out on simulation progress
 datinput = 0; % set to 1 to look for time-dependent .dat files and parse them to div1d
-if proceed
-run_div1d_code('','runs_path',simulation_path,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
-end
+run_div1d_code(simulation_path,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
 % note that new versions of matlab support function arguments by default,
 % however, in all repos here, we have our own varargin function argument
 % parsing that also works on computer clusters which are not on matlab 2022
@@ -116,34 +107,21 @@ plotdiv1d_v600(output,input)
 % this will print for you the settings that you need to obtain a stationary
 % SOL in the vicinity of your original solution without evolving the
 % reservoirs WARNING THIS MAY BE VERY UNPHYSICAL
-% pasted the outcome
-phypar.initial_ncore = 4.000000000E+19;
-phypar.core_confinement_time = 2.222222222E-02;
-phypar.core_ext_neutral_pump = [0.000000000E+00 0.000000000E+00 0.000000000E+00 0.000000000E+00 2.078860825E+02];
-phypar.core_fuelling = 1.000000000E+01;
-phypar.extern_neutral_ex = [0.000000000E+00 0.000000000E+00 7.379585459E+03];
-phypar.extern_molecule_ex = [0.000000000E+00 0.000000000E+00 5.797949912E+02];
-phypar.puff_rate_neutral =[0.000000000E+00 0.000000000E+00 3.804314082E+21 0.000000000E+00 4.067216865E+23];
-phypar.puff_rate_molecule =[0.000000000E+00 0.000000000E+00 9.856514850E+18 5.000000000E+21 5.000000000E+21];
-phypar.pump_rate_n =[0.000000000E+00 0.000000000E+00 0.000000000E+00 4.963966973E+04 0.000000000E+00];
-phypar.pump_rate_m =[0.000000000E+00 0.000000000E+00 0.000000000E+00 6.354460318E+03 1.803751804E+02];
+
 
 
 % simulate again
 numpar.evolve_core = 1; % this is a very bad core model...
 numpar.evolve_background = [0 0 1 1 1];
 
-simulation_path2 = './aug_simple_ppcf2024_reservoir/';
+simulation_path2 = './../aug_simple_ppcf2024_reservoir/';
 
 [proceed] =write_input(numpar,phypar); 
-if proceed
-run_div1d_code('','runs_path',simulation_path2,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
-end
-% this may take a while .... 
+
+run_div1d_code(simulation_path2,"div1d_install_path",div1d_install_path,'run_div1d',runnit,'nohup',nohup,'datinput',datinput); 
 
 
-%%
-[output2,input2]= div1dread_v600(strcat(simulation_path2,'div1d_output.txt'));
+[output2,input2]= div1dread_v600(strcat(simulation_path,'div1d_output.txt'));
 
 %% inspect the outcome
 close all;
