@@ -14,7 +14,9 @@
 % D.core_ext_molecule_pump = [0 0 0 0 0]; 
 % D.core_ext_neutral_pump = [0 0 0 0 0];
 % % reservoir circulating flows
-% D.circflow_n_temp = 0.5; % eV
+% D.circflow_n_temp = 5; % eV
+% D.circflow_m_temp = 2; %eV
+% D.wall_ass_prob = 0;
 % D.leak_gaps = [0.4 0.1 0.2]; % m 
 % D.leak_ato_mult = [0 0 3]; %[1 1 1];
 % D.leak_mol_mult = [0 0 1/3]; %[1 1 1];
@@ -55,10 +57,12 @@ D.switch_empty_core = 0;
 D.core_ext_molecule_pump = [0 0 0 0 0]; 
 D.core_ext_neutral_pump = [0 0 0 0 0];
 % reservoir circulating flows
-D.circflow_n_temp = 0.5; % eV
+D.wall_ass_prob= 0.0; % [-]
+D.circflow_n_temp = 5; % eV
+D.circflow_m_temp = 2; %eV
 D.leak_gaps = [0.4 0.1 0.2]; % m 
-D.leak_ato_mult = [0 0 3]; %[1 1 1];
-D.leak_mol_mult = [0 0 1/3]; %[1 1 1];
+D.leak_ato_mult = [0 0 1]; %[0 0 3]; %[1 1 1];
+D.leak_mol_mult = [0 0 1]; %[0 0 1/3]; %[1 1 1];
 % reservoir pumps
 D.atom_puff = [0 0 0 0 0 ];
 D.molecule_puff = [0 0 0 0 0];
@@ -120,7 +124,7 @@ elseif P.core_fuelling ~= 0 && sum(P.core_ext_neutral_pump + P.core_ext_molecule
     set.core_fuelling = P.core_fuelling;
     set.core_ext_molecule_pump = [0 0 0 0 0];
     set.core_ext_neutral_pump = [0 0 0 0 0];
-    required_flux2core = in.physics.gamma_core - set.core_fuelling -  out.sol2core_flux(end,1) - 2*out.sol2core_mol(end,1);
+    required_flux2core = in.physics.gamma_core - set.core_fuelling  - out.sol2core_flux(end,1) - 2*out.sol2core_mol(end,1);
     set.core_ext_neutral_pump(5) = required_flux2core / out.extern_neutral_density(end,5)/ in.physics.extern_neutral_volumes(5);
     disp('%for now only room 5 provides atoms to the core (no molecules)')
     extern2core_atoms = set.core_ext_neutral_pump.*out.extern_neutral_density(end,:).*in.physics.extern_neutral_volumes;
@@ -143,7 +147,7 @@ end
 % check core balance:
 dncdt = -in.physics.gamma_core ... %( fixed by given sol solution )
        + out.sol2core_flux(end,1) + 2* out.sol2core_mol(end,1) ...
-       + sum(extern2core_atoms) + 2*sum(extern2core_molecule)...( set core_ext_molecule/neutral_pump )
+       + sum(extern2core_atoms) + 2*sum(extern2core_molecule); %...( set core_ext_molecule/neutral_pump )
        + set.core_fuelling; % ( set core_fuelling )
 fprintf('%% core balance residual = %4.9E;\n',dncdt);
 
@@ -155,6 +159,7 @@ fprintf('%% core balance residual = %4.9E;\n',dncdt);
        %  +  extern flows             % ( set by extern_atom/molec_ex )
        %  +  puff                     % ( set by puff_rate_atom/molec )
        %  -  pump                     % ( set by pump_rate_n/m        )
+       %  -  wall_association         % ( set by P.wall_ass_prob      )
 % reservoirs:
 % dnrdt =  out.sol2extern +  out.tar2extern... % ( fixed by given sol solution )
 %          -  extern2core            ...  % ( fixed by above core closure )
@@ -162,6 +167,7 @@ fprintf('%% core balance residual = %4.9E;\n',dncdt);
 %          +  extern flows           ...  % ( set by extern_atom/molec_ex )
 %          +  puff                   ...  % ( set by puff_rate_atom/molec )
 %          -  pump                   ...  % ( set by pump_rate_n/m        )
+%          +  wall_association       ...  % ( set by P.wall_ass_prob      )
 % circulating flows
 vato = (e_charge*P.circflow_n_temp *8./ in.physics.mass./pi)^0.5;
 vmol = (e_charge*P.circflow_n_temp *8./ in.physics.mass./2./pi)^0.5;
@@ -203,6 +209,20 @@ ext_mol_flw_src(1:5)=[ext_mol_flw(1), ...
                             ext_mol_flw(3), ...
                             -ext_mol_flw(1)]; % D2/s
 
+% Wall association
+try
+set.atoms_associating = out.extern_neutral_density(end,:).*in.physics.extern_neutral_wall_area/in.physics.neutral_residence_time*P.wall_ass_prob;
+catch
+set.atoms_associating = 0;
+end
+set.molecules_from_association = set.atoms_associating/2; 
+
+for i = 1:5
+if P.ato_pump(i) < 0
+    set.molecules_from_association(i) = 0;
+    set.atoms_associating(i) = 0;
+end
+end
 % consider situation without any puffing!
 set.atom_puff = P.atom_puff; % D/s
 set.molecule_puff =  P.molecule_puff; % D2/s
@@ -216,7 +236,8 @@ set.ext_res_ato(1:5) =               out.sol2extern_flux(end,:) ...
                                     + ext_ato_flw_src ...
                                     - extern2core_atoms ...                                        
                                     + set.atom_puff...
-                                    - pumped_atoms;
+                                    - pumped_atoms ...
+                                    - set.atoms_associating;
 %set.ext_res_ato(1:5) = set.ext_res_ato(1:5) 
 % molecules
 pumped_molecules = P.mol_pump.*out.extern_molecule_density(end,1:5).*in.physics.extern_neutral_volumes; % 1e19
@@ -227,7 +248,8 @@ set.ext_res_mol(1:5) =               out.sol2extern_mol(end,:) ...
                                     + ext_mol_flw_src ...  % positive in 3, negative in 4, order 1e21
                                     - extern2core_molecule ... % zero, but not the same as extern2core_mol? 
                                     + set.molecule_puff ...
-                                    - pumped_molecules;
+                                    - pumped_molecules ...
+                                    + set.molecules_from_association;
 % set.ext_res_mol(1:5) = set.ext_res_mol(1:5)
 % check total balance: this includes everything
 set.totalresidual = sum(set.ext_res_ato(1:5) + 2.0*set.ext_res_mol(1:5));
@@ -248,7 +270,10 @@ for i_room = 1:5
             set.pump_rate_n(i_room) = set.ext_res_ato(i_room)./ out.extern_neutral_density(end,i_room)./ in.physics.extern_neutral_volumes(i_room);
         end
     else
-    error('negative pump rates are not allowed')
+    warning('negative pump rates are not allowed, assume reservoir is off')
+            set.puff_ato_closure(i_room) = 0.0;
+            set.pump_rate_n(i_room) = 0.0;
+            set.ext_res_ato(i_room) = 0.0;
     end
 
     if P.mol_pump(i_room) > 0 % pump specified
@@ -266,7 +291,10 @@ for i_room = 1:5
             set.pump_rate_m(i_room) = set.ext_res_mol(i_room)./ out.extern_molecule_density(end,i_room)./ in.physics.extern_neutral_volumes(i_room);
         end
     else
-    error('negative pump rates are not allowed')
+    warning('negative pump rates are not allowed, assume reservoir is off')
+            set.puff_mol_closure(i_room) = 0.0;
+            set.pump_rate_m(i_room) = 0.0;
+            set.ext_res_mol(i_room) = 0.0;
     end
 end
 
@@ -306,9 +334,9 @@ fprintf('%%pumped atoms      = %4.4E %4.4E %4.4E %4.4E %4.4E \n', set.pump_rate_
 fprintf('%%pumped molecules  = %4.4E %4.4E %4.4E %4.4E %4.4E \n', set.pump_rate_m.*out.extern_molecule_density(end,1:5).*in.physics.extern_neutral_volumes);
 fprintf('%%puffed molecules  = %4.4E %4.4E %4.4E %4.4E %4.4E \n',set.molecule_puff);
 fprintf('%%residual atoms = %4.4E %4.4E %4.4E %4.4E %4.4E \n', final_res_n);
-fprintf('%%residual moluc = %4.4E %4.4E %4.4E %4.4E %4.4E\n', final_res_m);
+fprintf('%%residual moluc = %4.4E %4.4E %4.4E %4.4E %4.4E \n', final_res_m);
 
-% pumped total 
+% pumped total % D /s
 set.total_puffed_atom = sum(set.puff_ato_closure(:)+set.atom_puff');
 set.total_puffed_mol = sum(2*set.puff_mol_closure(:)+2*set.molecule_puff');
 set.total_puffed = set.total_puffed_atom + set.total_puffed_mol; % sum(set.puff_ato_closure(:)+set.atom_puff' +2*set.puff_mol_closure(:)+2*set.molecule_puff');
@@ -316,11 +344,12 @@ set.total_puffed = set.total_puffed_atom + set.total_puffed_mol; % sum(set.puff_
 set.total_pumped_atom = sum(set.pump_rate_n.*out.extern_neutral_density(end,1:5).*in.physics.extern_neutral_volumes);
 set.total_pumped_mol = sum(2*set.pump_rate_m.*out.extern_molecule_density(end,1:5).*in.physics.extern_neutral_volumes);
 set.total_pumped = set.total_pumped_atom + set.total_pumped_mol; %sum(set.pump_rate_n.*out.extern_neutral_density(end,1:5).*in.physics.extern_neutral_volumes+ 2*set.pump_rate_m.*out.extern_molecule_density(end,1:5).*in.physics.extern_neutral_volumes);
+set.closed_residual = set.total_puffed - set.total_pumped;
 %puffed 
 fprintf('%%D/s atom puffed  = %4.4E , pumped =%4.4E \n', set.total_puffed_atom,set.total_pumped_atom);
 fprintf('%%D/s mol puffed  = %4.4E , pumped =%4.4E,SOLPS puff = %4.4E \n', set.total_puffed_mol,set.total_pumped_mol,sum(set.molecule_puff*2));
-fprintf('%%D/s total puffed  = %4.4E , pumped =%4.4E, residual= %4.4E \n', set.total_puffed,set.total_pumped,set.total_puffed - set.total_pumped);
-
+fprintf('%%D/s total puffed  = %4.4E , pumped =%4.4E, residual= %4.4E \n', set.total_puffed,set.total_pumped,set.closed_residual);
+disp('%finished calculating reservoir settings')
 
 end
 

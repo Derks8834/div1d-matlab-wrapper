@@ -149,7 +149,7 @@ fclose(fid);
             fprintf(fid,'%5.10f \n',dyn_rec);
             fclose(fid);
            else
-                disp('warning: dyn_gas.dat and ntime have a discrepancy')
+                disp('warning: dyn_rec.dat and ntime have a discrepancy')
                 flag = false;
             end
         end
@@ -276,11 +276,11 @@ fclose(fid);
  end
  if phypar.flux_expansion < 0 % get array
         prf_B_field = dat.B_field;
-        if length(prf_major_radius) >1
+        if length(prf_B_field) >1
              if length(prf_B_field) == Nx
             filename = 'B_field.dat'; permissions = 'w';
             fid = fopen(filename,permissions);
-            fprintf(fid,'%5.10f \n',prf_major_radius);
+            fprintf(fid,'%5.10f \n',prf_B_field);
             fclose(fid);
            else
                 disp('warning: B_field.dat and Nx have a discrepancy')
@@ -289,15 +289,15 @@ fclose(fid);
         end
  end
   if phypar.trans_expansion < 0 % get array
-        prf_B_field = dat.B_trans;
-        if length(prf_major_radius) >1
-             if length(prf_B_field) == Nx
+        prf_B_trans = dat.B_trans;
+        if length(prf_B_trans) >1
+             if length(prf_B_trans) == Nx
             filename = 'B_trans.dat'; permissions = 'w';
             fid = fopen(filename,permissions);
-            fprintf(fid,'%5.10f \n',prf_major_radius);
+            fprintf(fid,'%5.10f \n',prf_B_trans);
             fclose(fid);
            else
-                disp('warning: B_field.dat and Nx have a discrepancy')
+                disp('warning: B_trans.dat and Nx have a discrepancy')
                 flag = false;
             end
         end
@@ -350,7 +350,7 @@ fclose(fid);
         end
     end
    end
-
+  if isfield(phypar,'puff_rate_molecule');
    if phypar.puff_rate_molecule(1) == -1 %-0.5  % molecule puffing;
             dyn_molecule_puff = dat.molecule_puff;
     if length(dyn_molecule_puff) >1
@@ -366,8 +366,10 @@ fclose(fid);
             flag = false;
         end
     end
+
    end
- 
+  end
+    if isfield(phypar,'neutral_puff');
     if phypar.puff_rate_neutral(1) == -1 % -0.5  % neutral atom puffing;
             dyn_neutral_puff = dat.neutral_puff;
     if length(dyn_neutral_puff) >1
@@ -384,6 +386,6 @@ fclose(fid);
         end
     end
    end
- 
+    end
   
 end

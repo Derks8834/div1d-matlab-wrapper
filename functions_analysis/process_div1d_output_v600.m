@@ -210,7 +210,8 @@ ene.dt    = ene.bdqdx + ene.vdpdx +ene.src;
 
 % 4. neutral equation
 ato = struct;
-ato.dgamadx = -diff(o.Gamma_neutral(Ntime,:))./delta_xcb;
+ato.dgamadx = calculate_sol_leakage_neutral_sources(o.Gamma_neutral(Ntime,:),in.grid.a_int,in.grid.volumes);
+%ato.dgamadx = -diff(o.Gamma_neutral(Ntime,:))./delta_xcb;
 ato.src =  o.Source_neutral(Ntime,:);
 ato.dt = ato.dgamadx + ato.src;
 error.bal.neutral = ato.dt./o.neutral_density(Ntime,:);
@@ -218,7 +219,9 @@ error.src.neutral = o.Source_neutral(Ntime,:)*nan; % should be completed
 
 % 5. neutral momentum
 anv = struct;
-anv.dgamdx = -diff(o.Gamma_mom_neutral(Ntime,:))./delta_xcb;
+anv.dgamadx =calculate_sol_leakage_neutral_sources(o.Gamma_mom_neutral(Ntime,:),in.grid.a_int,in.grid.volumes);
+
+%anv.dgamdx = -diff(o.Gamma_mom_neutral(Ntime,:))./delta_xcb;
 pressure_nn = e_charge * neutral_density_cb * in.physics.neutral_energy; % might want to add a temperature profile to the DIV1D output ( now constant
 pressure_nn_cc = e_charge * o.neutral_density(Ntime,:) * in.physics.neutral_energy;
 anv.dpdx = -diff(pressure_nn)./delta_xcb;
@@ -226,15 +229,17 @@ anv.visc(1:Nx) = 0.0; %viscosity*(2.0d+0 * neutral_velocity_cb(0) + neutral_velo
 anv.visc(2:Nx-1) = in.numerics.viscosity*(o.neutral_velocity(Ntime,3:Nx) + o.neutral_velocity(Ntime,1:Nx-2) - 2*o.neutral_velocity(Ntime,2:Nx-1));
 %ydot(4*Nx+ix) + viscosity*(neutral_velocity(ix+1) + neutral_velocity(ix-1)-2.0d+0*neutral_velocity(ix))
 anv.src = o.Source_vn(Ntime,:);
-anv.dt = anv.dgamdx +anv.dpdx + anv.src+ anv.visc;
+anv.dt = anv.dgamadx +anv.dpdx + anv.src+ anv.visc;
 error.bal.neutral_mom = anv.dt./pressure_nn_cc;
 error.src.neutral_mom = anv.src*nan;
 
 % 6. molecules
 mol = struct;
-mol.dgamdx = -diff(o.Gamma_molecule(Ntime,:))./delta_xcb;
+mol.dgamadx =calculate_sol_leakage_neutral_sources(o.Gamma_molecule(Ntime,:),in.grid.a_int,in.grid.volumes);
+
+%mol.dgamdx = -diff(o.Gamma_molecule(Ntime,:))./delta_xcb;
 mol.src = o.Source_molecule(Ntime,:);
-mol.dt = mol.dgamdx + mol.src;
+mol.dt = mol.dgamadx + mol.src;
 error.bal.molecule = mol.dt ./o.molecule(Ntime,:);
 error.src.molecule = mol.src*nan; % this should be completed
 
@@ -327,30 +332,52 @@ reservoir.mol.dt = reservoir.mol.sol2ext_mol...
 reservoir.mol.error = reservoir.mol.dt./o.extern_molecule_density(Ntime,:);
 
 % sol reservoir balance
-reservoir.sol.ext2sol_flux = sum(o.extern2sol_flux(Ntime,:));
-reservoir.sol.ext2sol_mol_D = 2*sum(o.extern2sol_mol(Ntime,:));
+%reservoir.sol.ext2sol_flux = sum(o.extern2sol_flux(Ntime,:));
+%reservoir.sol.ext2sol_mol_D = 2*sum(o.extern2sol_mol(Ntime,:));
+reservoir.sol.sol2ext_flux = -sum(o.sol2extern_flux(Ntime,:));
+reservoir.sol.sol2ext_mol_D = -2*sum(o.sol2extern_mol(Ntime,:));
 reservoir.sol.cor2sol_flux = sum(o.core2sol_flux(Ntime,:));
 reservoir.sol.cor2sol_mol_D = 2*sum(o.core2sol_mol(Ntime,:));
 reservoir.sol.tar2ext_flux = -sum(o.tar2extern_flux(Ntime,:));
 reservoir.sol.tar2ext_mol_D = -2*sum(o.tar2extern_mol(Ntime,:));
 reservoir.sol.farsol_ion = o.sum_sol2extern_ion_mol(Ntime) + o.sum_sol2extern_ion_flux(Ntime);
 reservoir.sol.gamma_core = in.dynamic.dyn_gam_core(Ntime);
-reservoir.sol.dt =+ reservoir.sol.ext2sol_flux...
-                  + reservoir.sol.ext2sol_mol_D ...    
-                + reservoir.sol.cor2sol_flux ...
-                + reservoir.sol.cor2sol_mol_D ...
+reservoir.sol.dt =+ reservoir.sol.sol2ext_flux...
+                  + reservoir.sol.sol2ext_mol_D ...    
                 + reservoir.sol.tar2ext_flux...
                 + reservoir.sol.tar2ext_mol_D...
+                + reservoir.sol.cor2sol_flux ...
+                + reservoir.sol.cor2sol_mol_D ...
                 + reservoir.sol.farsol_ion...
                 + reservoir.sol.gamma_core;
-reservoir.sol.flows = abs(reservoir.sol.ext2sol_mol_D) ...
-                + abs(reservoir.sol.ext2sol_flux)...
-                + abs(reservoir.sol.cor2sol_flux) ...
-                + abs(reservoir.sol.cor2sol_mol_D) ...
+% these are not counted in the source
+
+reservoir.sol.flows = abs(reservoir.sol.sol2ext_mol_D) ...
+                + abs(reservoir.sol.sol2ext_flux)...
                 + abs(reservoir.sol.tar2ext_flux)...
                 + abs(reservoir.sol.tar2ext_mol_D)...
+                + abs(reservoir.sol.cor2sol_flux) ...
+                + abs(reservoir.sol.cor2sol_mol_D) ...
                 + abs(reservoir.sol.farsol_ion)...
                 + abs(reservoir.sol.gamma_core);
+% these are not counted in the source
+
+% global particle balance
+reservoir.tot.pump_ato = in.physics.pump_rate_n.*o.extern_neutral_density(end,:).*in.physics.extern_neutral_volumes;
+reservoir.tot.pump_mol_D = 2*in.physics.pump_rate_m.*o.extern_molecule_density(end,:).*in.physics.extern_neutral_volumes;
+reservoir.tot.puff_ato = in.dynamic.dyn_neutral_puff(end,:);
+reservoir.tot.puff_mol_D = 2*in.dynamic.dyn_molecule_puff(end,:);
+reservoir.tot.core_fuel_D = in.dynamic.dyn_core_fuelling(end);
+reservoir.tot.sol_puff_mol_D = 2*in.dynamic.dyn_gas(end);
+reservoir.tot.dt = - sum(reservoir.tot.pump_ato ) ...
+                 - sum( reservoir.tot.pump_mol_D )...
+                + sum(reservoir.tot.puff_ato ) ...
+                + sum(reservoir.tot.puff_mol_D )...
+                + reservoir.tot.core_fuel_D ...
+                + reservoir.tot.sol_puff_mol_D ;
+% reservoir.tot.N = N_core
+
+%+ leakage_fluxes(1) = sum(G_loss(0:i_baffle(1)-1))/2.0d+0 + (A_wet(1)-A_int(1))*Gamma_neut(0) / 2.0d0
 
 % balances
 bal = struct;
@@ -387,7 +414,7 @@ fprintf('sol dt   : %e \n',reservoir.sol.dt);
 % end
 fprintf('ato res  : %f %f %f %f %f \n',reservoir.ato.error);
 fprintf('mol res  : %f %f %f %f %f \n \n',reservoir.mol.error);
-
+fprintf('tot res dD/dt : %e  \n \n',reservoir.tot.dt);
 
 %% check boundary conditions
 % the boundary conditions in div1d are set for the fluxes at the target:
@@ -618,4 +645,37 @@ end
 out.Derror = error;
 
 end
+function source =calculate_sol_leakage_neutral_sources(flux,A_int,volumes)
+Nx = length(flux)-1;
+source = zeros(1,Nx);
+for ix = 1:Nx-1
+    if flux(ix+1) > 0&& A_int(ix) > A_int(ix+1)
+        % S(n)
+        source(ix) = source(ix) - A_int(ix) * flux(ix+1) / volumes(ix);
+        % 			! S(n+1)
+        source(ix+1) = source(ix+1) + A_int(ix+1) * flux(ix+1) / volumes(ix+1);
+    elseif flux(ix+1) < 0 && A_int(ix) > A_int(ix+1)
+        % 			! S(n)
+        source(ix) = source(ix) - A_int(ix+1) * flux(ix+1) / volumes(ix);
+        % 			! S(n+1)
+        source(ix+1) = source(ix+1) + A_int(ix+1) * flux(ix+1) / volumes(ix+1);
+    elseif flux(ix+1)> 0 && A_int(ix) < A_int(ix+1)
+        % 			! S(n)
+        source(ix) = source(ix) - A_int(ix) * flux(ix+1) / volumes(ix);
+        % 			! S(n+1)
+        source(ix+1) = source(ix+1) + A_int(ix) * flux(ix+1) / volumes(ix+1);
+    else
+        % 			! S(n)
+        source(ix) = source(ix) - A_int(ix) * flux(ix+1) / volumes(ix);
+        % 			! S(n+1)
+        source(ix+1) = source(ix+1) + A_int(ix+1) * flux(ix+1) / volumes(ix+1);
+    end
+end
+source(1) = source(1) + A_int(1)*flux(1) / volumes(1);
+source(Nx) = source(Nx) - A_int(Nx)*flux(Nx+1) / volumes(Nx);
+end
 
+%function leakage = calculate_sol_leakage_per_cell(flux,A_int,volumes)
+% calculate the leakage term that should be in 
+
+%end
