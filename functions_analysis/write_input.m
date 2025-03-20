@@ -159,7 +159,7 @@ fclose(fid);
     if phypar.gas_puff_source < 0 %'gas puff source';
                 dyn_gas = dat.gas_puff_source;
         if length(dyn_gas) >1
-             if length(dyn_gas) == ntime
+             if length(dyn_gas) == ntime+2
             filename = 'dyn_gas.dat'; permissions = 'w';
             fid = fopen(filename,permissions);
             fprintf(fid,'%5.10f \n',dyn_gas);
